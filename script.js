@@ -1,90 +1,144 @@
-//your code here
 const gameContainer = document.getElementById("gameContainer");
-
-// Generate 40x40 separate pixels with unique ids
-for (let row = 1; row <= 40; row++) {
-  for (let col = 1; col <= 40; col++) {
-    const pixel = document.createElement("div");
-    pixel.classList.add("pixel");
-    pixel.id = "pixel" + ((row - 1) * 40 + col);
-    gameContainer.appendChild(pixel);
-  }
-}
+const scoreBoard = document.createElement("div");
+scoreBoard.classList.add("scoreBoard");
+gameContainer.insertAdjacentElement("beforebegin", scoreBoard);
 
 // Add the food with class "food" and unique id "foodPixel"
 const foodPixel = document.createElement("div");
 foodPixel.classList.add("food");
-foodPixel.id = "foodPixel";
 gameContainer.appendChild(foodPixel);
 
-// Add the snake body with class "snakeBodyPixel" and unique ids
-const snakeBodyPixel1 = document.createElement("div");
-snakeBodyPixel1.classList.add("snakeBodyPixel");
-snakeBodyPixel1.id = "pixel1";
-snakeBodyPixel1.style.gridColumn = "1";
-snakeBodyPixel1.style.gridRow = "20";
-gameContainer.appendChild(snakeBodyPixel1);
+// Add the snake head with class "snakeBodyPixel" and unique id "pixel1"
+const snakeHeadPixel = document.createElement("div");
+snakeHeadPixel.classList.add("snakeBodyPixel");
+snakeHeadPixel.id = "pixel1";
+snakeHeadPixel.style.gridColumn = "1";
+snakeHeadPixel.style.gridRow = "20";
+gameContainer.appendChild(snakeHeadPixel);
 
-const snakeBodyPixel2 = document.createElement("div");
-snakeBodyPixel2.classList.add("snakeBodyPixel");
-snakeBodyPixel2.id = "pixel2";
-snakeBodyPixel2.style.gridColumn = "2";
-snakeBodyPixel2.style.gridRow = "20";
-gameContainer.appendChild(snakeBodyPixel2);
-
-const snakeBodyPixel3 = document.createElement("div");
-snakeBodyPixel3.classList.add("snakeBodyPixel");
-snakeBodyPixel3.id = "pixel3";
-snakeBodyPixel3.style.gridColumn = "3";
-snakeBodyPixel3.style.gridRow = "20";
-gameContainer.appendChild(snakeBodyPixel3);
-
-// Add the score board with class "scoreBoard"
-const scoreBoard = document.createElement("div");
-scoreBoard.classList.add("scoreBoard");
-scoreBoard.textContent = "Score: 0";
-gameContainer.insertAdjacentElement("beforebegin", scoreBoard);
-
-// Snake movement
-let currentCol = 3;
-let currentRow = 20;
+// Initialize snake body and movement variables
+const snakeBodyPixels = [snakeHeadPixel];
+let snakeDirection = "right";
 let score = 0;
-const scoreBoardEl = document.querySelector(".scoreBoard");
+let gameInProgress = true;
+let intervalId;
 
+// Add event listener for keydown events to change snake direction
+document.addEventListener("keydown", function (event) {
+    if (event.key === "ArrowUp" && snakeDirection !== "down") {
+        snakeDirection = "up";
+    } else if (event.key === "ArrowDown" && snakeDirection !== "up") {
+        snakeDirection = "down";
+    } else if (event.key === "ArrowLeft" && snakeDirection !== "right") {
+        snakeDirection = "left";
+    } else if (event.key === "ArrowRight" && snakeDirection !== "left") {
+        snakeDirection = "right";
+    }
+});
+
+// Move the snake by one pixel
 function moveSnake() {
-  const newPixel = document.createElement("div");
-  newPixel.classList.add("snakeBodyPixel");
-  newPixel.id = "pixel" + (score + 4);
-  newPixel.style.gridColumn = currentCol + 1;
-  newPixel.style.gridRow = currentRow;
-  gameContainer.appendChild(newPixel);
+    // Get current head pixel coordinates
+    let currentCol = parseInt(snakeHeadPixel.style.gridColumn);
+    let currentRow = parseInt(snakeHeadPixel.style.gridRow);
 
-  const tailPixel = document.getElementById("pixel" + (score + 1));
-  tailPixel.remove();
+    // Move the head pixel in the current direction
+    if (snakeDirection === "up") {
+        currentRow--;
+    } else if (snakeDirection === "down") {
+        currentRow++;
+    } else if (snakeDirection === "left") {
+        currentCol--;
+    } else if (snakeDirection === "right") {
+        currentCol++;
+    }
 
-  const headPixel = document.getElementById("pixel" + (score + 4));
-  if (headPixel.classList.contains("food")) {
-    score++;
-    scoreBoardEl.textContent = "Score: " + score;
-    addFood();
-  }
+    // Wrap snake to opposite side of grid if it goes off screen
+    if (currentCol > 40) {
+        currentCol = 1;
+    } else if (currentCol < 1) {
+        currentCol = 40;
+    } else if (currentRow > 40) {
+        currentRow = 1;
+    } else if (currentRow < 1) {
+        currentRow = 40;
+    }
 
-  currentCol++;
+    // Check if the snake has collided with itself
+    const collision = snakeBodyPixels.find(
+        (pixel) =>
+            pixel !== snakeHeadPixel &&
+            parseInt(pixel.style.gridColumn) === currentCol &&
+            parseInt(pixel.style.gridRow) === currentRow
+    );
+    if (collision) {
+        endGame();
+        return;
+    }
 
-  if (currentCol > 40) {
-    currentCol = 1;
-  }
+    // Check if the head pixel is on a food pixel
+    const foodPixel = document.querySelector(".food");
+    if (
+        parseInt(foodPixel.style.gridColumn) === currentCol &&
+        parseInt(foodPixel.style.gridRow) === currentRow
+    ) {
+        score++;
+        scoreBoard.textContent = "Score: " + score;
+        addFood();
+        const newTailPixel = createTailPixel();
+        snakeBodyPixels.push(newTailPixel);
+        gameContainer.appendChild(newTailPixel);
+    } else {
+        // Remove the tail pixel and move it to the front as the new head
+        const tailPixel = snakeBodyPixels.pop();
+        tailPixel.style.gridColumn = currentCol;
+        tailPixel.style.gridRow = currentRow;
+        snakeBodyPixels.unshift(tailPixel);
+    }
 
-  setTimeout(moveSnake, 100);
+    // Update the position of all snake body pixels
+    for (let i = 0; i < snakeBodyPixels.length; i++) {
+        const pixel = snakeBodyPixels[i];
+        const previousPixel = i === 0 ? snakeHeadPixel : snakeBodyPixels[i - 1];
+        if (pixel !== previousPixel) {
+            pixel.style.gridColumn = previousPixel.style.gridColumn;
+            pixel.style.gridRow = previousPixel.style.gridRow;
+        }
+    }
 }
 
+// Create a new tail pixel for the snake
+function createTailPixel() {
+    const tailPixel = document.createElement("div");
+    tailPixel.classList.add("snakeBodyPixel");
+    tailPixel.id = "pixel" + (snakeBodyPixels.length + 1);
+    return tailPixel;
+}
+
+// Add a new food pixel in a random location
 function addFood() {
-  const foodPixel = document.getElementById("foodPixel");
-  foodPixel.classList.remove("food");
-  const randomPixelId = Math.floor(Math.random() * 1600) + 1;
-  const randomPixel = document.getElementById("pixel" + randomPixelId);
-  randomPixel.classList.add("food");
+    let randomCol, randomRow;
+    do {
+        randomCol = Math.floor(Math.random() * 40) + 1;
+        randomRow = Math.floor(Math.random() * 40) + 1;
+    } while (
+        snakeBodyPixels.some(
+            (pixel) =>
+                parseInt(pixel.style.gridColumn) === randomCol &&
+                parseInt(pixel.style.gridRow) === randomRow
+        )
+    );
+    const foodPixel = document.querySelector(".food");
+    foodPixel.style.gridColumn = randomCol;
+    foodPixel.style.gridRow = randomRow;
 }
 
-addFood();
-moveSnake();
+// Start the game loop
+intervalId = setInterval(moveSnake, 100);
+
+// End the game and show the final score
+function endGame() {
+    clearInterval(intervalId);
+    gameInProgress = false;
+    alert("Game Over! Your score is " + score);
+}
