@@ -1,7 +1,4 @@
-body {
-    font-family: 'Courier New', Courier, monospace;
-    text-align: center;
-}
-canvas[Attributes Style] {
-    width: 400px
+canvas{
+	display: block;
+	margin: 0 auto;
 }
